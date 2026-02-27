@@ -21,11 +21,13 @@ PANE_PATH=$(echo "$TMUX_INFO" | cut -d'|' -f3)
 INPUT=$(cat)
 TOOL=$(echo "$INPUT" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('tool_name',''))" 2>/dev/null)
 DETAIL=$(echo "$INPUT" | python3 -c "import sys,json; d=json.load(sys.stdin); inp=d.get('tool_input',{}); print(inp.get('command', inp.get('file_path', ''))[:60])" 2>/dev/null)
+LAST_MSG=$(echo "$INPUT" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('last_assistant_message','')[:200])" 2>/dev/null)
 
 NOW=$(date +%s)
 
-# Escape single quotes in detail for safe embedding in python
+# Escape single quotes for safe embedding in python
 DETAIL_ESCAPED=$(echo "$DETAIL" | sed "s/'/\\\\'/g")
+LAST_MSG_ESCAPED=$(echo "$LAST_MSG" | sed "s/'/\\\\'/g")
 
 # Atomic JSON update
 python3 -c "
@@ -42,6 +44,8 @@ pane = '$PANE'
 prev = state.get(pane, {})
 prev_work_start = prev.get('work_start')
 
+last_msg = '$LAST_MSG_ESCAPED'
+
 entry = {
     'status': '$STATUS',
     'event': '$EVENT',
@@ -52,6 +56,12 @@ entry = {
     'path': '$PANE_PATH',
     'timestamp': $NOW
 }
+
+# Store last_message on stop events, preserve from previous state otherwise
+if last_msg:
+    entry['last_message'] = last_msg
+elif prev.get('last_message'):
+    entry['last_message'] = prev['last_message']
 
 # Preserve work_start while working, set on first transition, clear otherwise
 if '$STATUS' == 'working':
@@ -68,6 +78,9 @@ with open(tmp, 'w') as fh:
     json.dump(state, fh)
 os.rename(tmp, f)
 "
+
+# Trigger SwiftBar refresh so menu bar updates instantly
+open -g "swiftbar://refreshplugin?name=agentbar" &>/dev/null &
 
 # Must output valid JSON for Claude Code to accept
 echo "{}"

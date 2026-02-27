@@ -24,7 +24,7 @@ echo "Installing AgentBar to: $PLUGIN_DIR"
 
 # Files to symlink
 FILES=(
-    agentbar.2s.sh
+    agentbar.30s.sh
     agentbar-hook.sh
     activate-session.sh
     approve-session.sh

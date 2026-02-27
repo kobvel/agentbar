@@ -108,17 +108,20 @@ for pid, (sess, win, cmd, path) in live_panes.items():
         else:
             dur = now - ts
 
-        # Sanitize pipe chars in detail
+        last_msg = h.get('last_message', '')
+
+        # Sanitize pipe chars
         detail = detail.replace('|', ' ')
         tool = tool.replace('|', ' ')
-        print(f'{pid}|{status}|{tool}|{detail}|{sess}|{win}|{path}|{dur}')
+        last_msg = last_msg.replace('|', ' ').replace('\n', ' ')
+        print(f'{pid}|{status}|{tool}|{detail}|{sess}|{win}|{path}|{dur}|{last_msg}')
     else:
         if cmd not in ('zsh', 'bash'):
             # Known agents without hook state are likely idle (user typing)
             if cmd in ('claude', 'codex'):
-                print(f'{pid}|idle||Waiting for input|{sess}|{win}|{path}|0')
+                print(f'{pid}|idle||Waiting for input|{sess}|{win}|{path}|0|')
             else:
-                print(f'{pid}|working||Running...|{sess}|{win}|{path}|0')
+                print(f'{pid}|working||Running...|{sess}|{win}|{path}|0|')
 " 2>/dev/null)
 
 if [ -z "$MERGED" ]; then
@@ -136,7 +139,7 @@ working_count=0
 idle_count=0
 done_count=0
 
-while IFS='|' read -r _ status _ _ _ _ _ _; do
+while IFS='|' read -r _ status _ _ _ _ _ _ _; do
     case "$status" in
         action)  action_count=$((action_count + 1)) ;;
         working) working_count=$((working_count + 1)) ;;
@@ -160,7 +163,7 @@ fi
 echo "---"
 
 # Dropdown items + notifications
-while IFS='|' read -r pane_id status tool detail session_name window_index pane_path duration; do
+while IFS='|' read -r pane_id status tool detail session_name window_index pane_path duration last_message; do
     [ -z "$pane_id" ] && continue
 
     dur=$(format_duration "$duration")
@@ -197,6 +200,11 @@ while IFS='|' read -r pane_id status tool detail session_name window_index pane_
         [ "$status" = "working" ] && [ -n "$tool" ] && status_label="$tool"
         echo "$icon $session_name ($dur) — ${status_label:-$status} | bash='$ACTIVATE_SCRIPT' param1='$session_name' param2='$window_index' terminal=false"
         [ -n "$short_path" ] && echo "--$short_path | color=gray size=11"
+        if [ "$status" = "idle" ] && [ -n "$last_message" ]; then
+            truncated="${last_message:0:80}"
+            [ ${#last_message} -gt 80 ] && truncated="${truncated}…"
+            echo "--💬 $truncated | color=white size=11"
+        fi
     fi
 done <<< "$MERGED"
 
