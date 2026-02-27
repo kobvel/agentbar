@@ -79,7 +79,7 @@ Replace `/path/to/agentbar` with the actual path where you cloned the repo.
 
 1. **`agentbar-hook.sh`** — Claude Code calls this hook on events (tool use, permission prompts, stop). It writes the agent's state to `/tmp/agentbar-state.json`, keyed by tmux pane ID.
 
-2. **`agentbar.2s.sh`** — SwiftBar runs this every 2 seconds. It reads the hook state, cross-references live tmux panes, prunes dead sessions, and renders the menu bar + dropdown.
+2. **`agentbar.30s.sh`** — SwiftBar plugin that reads hook state, cross-references live tmux panes, prunes dead sessions, and renders the menu bar + dropdown. Hooks trigger instant refreshes; the 30s interval is a fallback.
 
 3. **Action scripts** — `approve-session.sh`, `approve-always-session.sh`, `decline-session.sh` send keystrokes to the appropriate tmux pane. `activate-session.sh` switches to the session in iTerm2.
 
@@ -97,7 +97,7 @@ AgentBar will automatically use it when available, falling back to `osascript` n
 
 | File | Purpose |
 |------|---------|
-| `agentbar.2s.sh` | SwiftBar plugin (polls every 2s) |
+| `agentbar.30s.sh` | SwiftBar plugin (30s fallback poll; hooks trigger instant refresh) |
 | `agentbar-hook.sh` | Claude Code hook (writes state on events) |
 | `activate-session.sh` | Switch to tmux session in iTerm2 |
 | `approve-session.sh` | Send Enter to approve |
