@@ -8,6 +8,7 @@ A [SwiftBar](https://github.com/swiftbar/SwiftBar) plugin that monitors AI codin
 
 - Live status for each agent session: working, needs approval, idle, exited
 - Approve, "Yes always", or decline permission prompts directly from the menu bar
+- Shows the agent's last message when idle (no need to switch to terminal)
 - Click any session to jump to it in iTerm2
 - Desktop notifications on state changes (with optional [terminal-notifier](https://github.com/julienXX/terminal-notifier) for richer alerts)
 
@@ -30,7 +31,7 @@ A [SwiftBar](https://github.com/swiftbar/SwiftBar) plugin that monitors AI codin
 ## Install
 
 ```bash
-git clone https://github.com/user/agentbar.git
+git clone https://github.com/kobvel/agentbar.git
 cd agentbar
 ./install.sh
 ```

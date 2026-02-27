@@ -56,12 +56,23 @@ echo "Done! AgentBar is installed."
 echo ""
 echo "Next steps:"
 echo "  1. Configure Claude Code hooks — add to ~/.claude/settings.json:"
-echo '     {
+cat <<HOOKS
+     {
        "hooks": {
-         "PreToolUse": [{ "matcher": "", "hooks": [{ "type": "command", "command": "'"$SCRIPT_DIR"'/agentbar-hook.sh working pretooluse" }] }],
-         "PostToolUse": [{ "matcher": "", "hooks": [{ "type": "command", "command": "'"$SCRIPT_DIR"'/agentbar-hook.sh working posttooluse" }] }],
-         "Notification": [{ "matcher": "", "hooks": [{ "type": "command", "command": "'"$SCRIPT_DIR"'/agentbar-hook.sh action notification" }] }],
-         "Stop": [{ "matcher": "", "hooks": [{ "type": "command", "command": "'"$SCRIPT_DIR"'/agentbar-hook.sh idle stop" }] }]
+         "PreToolUse": [
+           { "hooks": [{ "type": "command", "command": "$SCRIPT_DIR/agentbar-hook.sh working pretooluse" }] }
+         ],
+         "Notification": [
+           { "matcher": "permission_prompt", "hooks": [{ "type": "command", "command": "$SCRIPT_DIR/agentbar-hook.sh action permission_prompt" }] },
+           { "matcher": "idle_prompt", "hooks": [{ "type": "command", "command": "$SCRIPT_DIR/agentbar-hook.sh idle idle_prompt" }] }
+         ],
+         "Stop": [
+           { "hooks": [{ "type": "command", "command": "$SCRIPT_DIR/agentbar-hook.sh idle stop" }] }
+         ],
+         "UserPromptSubmit": [
+           { "hooks": [{ "type": "command", "command": "$SCRIPT_DIR/agentbar-hook.sh working userpromptsubmit" }] }
+         ]
        }
-     }'
+     }
+HOOKS
 echo "  2. Restart SwiftBar (or it will pick up the plugin automatically)"
