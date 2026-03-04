@@ -63,6 +63,11 @@ if last_msg:
 elif prev.get('last_message'):
     entry['last_message'] = prev['last_message']
 
+# If going idle and last tool was AskUserQuestion, mark as action (needs response)
+if '$STATUS' == 'idle' and prev.get('tool') == 'AskUserQuestion':
+    entry['status'] = 'action'
+    entry['detail'] = 'Waiting for your answer'
+
 # Preserve work_start while working, set on first transition, clear otherwise
 if '$STATUS' == 'working':
     entry['work_start'] = prev_work_start if prev_work_start else $NOW
