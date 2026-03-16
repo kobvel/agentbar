@@ -86,6 +86,8 @@ if changed:
     with open(tmp, 'w') as f: json.dump(hook_state, f)
     os.rename(tmp, hook_file)
 
+active_sessions = set()
+
 for pid, (sess, win, cmd, path) in live_panes.items():
     h = hook_state.get(pid)
     if h:
@@ -115,13 +117,20 @@ for pid, (sess, win, cmd, path) in live_panes.items():
         tool = tool.replace('|', ' ')
         last_msg = last_msg.replace('|', ' ').replace('\n', ' ')
         print(f'{pid}|{status}|{tool}|{detail}|{sess}|{win}|{path}|{dur}|{last_msg}')
+        active_sessions.add(sess)
     else:
-        if cmd not in ('zsh', 'bash'):
-            # Known agents without hook state are likely idle (user typing)
-            if cmd in ('claude', 'codex'):
-                print(f'{pid}|idle||Waiting for input|{sess}|{win}|{path}|0|')
-            else:
-                print(f'{pid}|working||Running...|{sess}|{win}|{path}|0|')
+        # Only show known agent processes, skip everything else
+        if cmd in ('claude', 'codex'):
+            print(f'{pid}|idle||Waiting for input|{sess}|{win}|{path}|0|')
+            active_sessions.add(sess)
+
+# Output inactive tmux sessions (no active agent panes)
+all_sessions = {}
+for pid, (sess, win, cmd, path) in live_panes.items():
+    if sess not in active_sessions and sess not in all_sessions:
+        all_sessions[sess] = (win, pid)
+for sess, (win, pid) in sorted(all_sessions.items()):
+    print(f'{pid}|inactive|||{sess}|{win}||0|')
 " 2>/dev/null)
 
 if [ -z "$MERGED" ]; then
@@ -163,6 +172,8 @@ fi
 echo "---"
 
 # Dropdown items + notifications
+inactive_lines=""
+
 while IFS='|' read -r pane_id status tool detail session_name window_index pane_path duration last_message; do
     [ -z "$pane_id" ] && continue
 
@@ -178,28 +189,29 @@ while IFS='|' read -r pane_id status tool detail session_name window_index pane_
         fi
     fi
 
+    # Collect inactive/shell sessions for later
+    if [ "$status" = "shell" ] || [ "$status" = "inactive" ]; then
+        inactive_lines+="--$session_name | bash='$ACTIVATE_SCRIPT' param1='$session_name' param2='$window_index' param3='$pane_id' terminal=false"$'\n'
+        continue
+    fi
+
     case "$status" in
         action)  icon="🔴" ;;
         working) icon="⚡" ;;
         idle)    icon="🟡" ;;
-        shell)   icon="—" ;;
     esac
-
-    short_path=$(echo "$pane_path" | awk -F/ '{if(NF>2) print $(NF-1)"/"$NF; else print $0}')
 
     if [ "$status" = "action" ]; then
         action_label="${tool:+$tool: }${detail:-Needs approval}"
-        echo "$icon $session_name ($dur) — Needs approval | bash='$ACTIVATE_SCRIPT' param1='$session_name' param2='$window_index' terminal=false"
+        echo "$icon $session_name ($dur) — Needs approval | bash='$ACTIVATE_SCRIPT' param1='$session_name' param2='$window_index' param3='$pane_id' terminal=false"
         [ -n "$action_label" ] && echo "--$action_label | color=white size=11"
-        [ -n "$short_path" ] && echo "--$short_path | color=gray size=11"
         echo "--✓ Yes | bash='$APPROVE_SCRIPT' param1='$session_name' param2='$window_index' terminal=false color=green refresh=true"
         [ -f "$APPROVE_ALWAYS_SCRIPT" ] && echo "--✓ Yes, always | bash='$APPROVE_ALWAYS_SCRIPT' param1='$session_name' param2='$window_index' terminal=false color=green refresh=true"
         echo "--✗ No | bash='$DECLINE_SCRIPT' param1='$session_name' param2='$window_index' terminal=false color=red refresh=true"
     else
         status_label="$detail"
         [ "$status" = "working" ] && [ -n "$tool" ] && status_label="$tool"
-        echo "$icon $session_name ($dur) — ${status_label:-$status} | bash='$ACTIVATE_SCRIPT' param1='$session_name' param2='$window_index' terminal=false"
-        [ -n "$short_path" ] && echo "--$short_path | color=gray size=11"
+        echo "$icon $session_name ($dur) — ${status_label:-$status} | bash='$ACTIVATE_SCRIPT' param1='$session_name' param2='$window_index' param3='$pane_id' terminal=false"
         if [ "$status" = "idle" ] && [ -n "$last_message" ]; then
             truncated="${last_message:0:80}"
             [ ${#last_message} -gt 80 ] && truncated="${truncated}…"
@@ -207,6 +219,13 @@ while IFS='|' read -r pane_id status tool detail session_name window_index pane_
         fi
     fi
 done <<< "$MERGED"
+
+# Inactive sessions submenu
+if [ -n "$inactive_lines" ]; then
+    echo "---"
+    echo "Inactive | color=gray"
+    echo -n "$inactive_lines"
+fi
 
 # Save current states for next cycle
 echo "$MERGED" | while IFS='|' read -r pane_id status _; do
